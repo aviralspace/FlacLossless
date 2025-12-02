@@ -206,11 +206,15 @@ class JobManager:
                     job.stage = "Converting to MP3..."
                     job.notify_subscribers()
             
+            cookies_file = get_youtube_cookies()
+            if cookies_file:
+                logger.info(f"Using cookies file for download: {cookies_file}")
+            
             ydl_opts = {
-                'format': 'best',  # Start simple - this works on ALL geographic locations
+                'format': 'bestaudio/best',
                 'outtmpl': output_template,
-                'quiet': True,
-                'no_warnings': True,
+                'quiet': False,
+                'no_warnings': False,
                 'nocheckcertificate': True,
                 'geo_bypass': True,
                 'geo_bypass_country': 'US',
@@ -220,7 +224,6 @@ class JobManager:
                 'fragment_retries': 5,
                 'skip_unavailable_fragments': True,
                 'allow_unplayable_formats': True,
-                'quiet': False,
                 'verbose': False,
                 'youtube_include_dash_manifest': False,
                 'http_headers': {
@@ -244,20 +247,24 @@ class JobManager:
                 },
             }
             
+            if cookies_file:
+                ydl_opts['cookiefile'] = cookies_file
+            
             job.stage = "Fetching video info..."
             job.progress = 10
             job.notify_subscribers()
             
-            # Try with postprocessor first (converts to MP3 on download)
             success = False
+            last_error = None
+            
+            ydl_opts['postprocessors'] = [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }]
+            ydl_opts['progress_hooks'] = [progress_hook]
+            
             try:
-                ydl_opts['postprocessors'] = [{
-                    'key': 'FFmpegExtractAudio',
-                    'preferredcodec': 'mp3',
-                    'preferredquality': '192',
-                }]
-                ydl_opts['progress_hooks'] = [progress_hook]
-                
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     info = ydl.extract_info(job.url, download=True)
                     job.metadata = {
@@ -270,12 +277,13 @@ class JobManager:
                     success = True
                     logger.info(f"Download successful with MP3 conversion")
             except Exception as e1:
-                # If that fails, try WITHOUT postprocessor (just download raw audio)
-                logger.warning(f"MP3 conversion failed, trying raw audio download: {e1}")
+                logger.warning(f"MP3 conversion failed: {e1}")
+                last_error = e1
+            
+            if not success:
+                logger.info("Trying raw audio download without postprocessor...")
+                ydl_opts['postprocessors'] = []
                 try:
-                    ydl_opts['postprocessors'] = []
-                    ydl_opts['progress_hooks'] = [progress_hook]
-                    
                     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                         info = ydl.extract_info(job.url, download=True)
                         job.metadata = {
@@ -288,24 +296,18 @@ class JobManager:
                         success = True
                         logger.info(f"Raw audio download successful (no conversion)")
                 except Exception as e2:
-                    logger.error(f"Raw audio download also failed: {e2}")
-            except Exception as format_error:
-                # If format error, try with progressively simpler formats (without postprocessor)
-                error_msg = str(format_error).lower()
+                    logger.warning(f"Raw audio download failed: {e2}")
+                    last_error = e2
+            
+            if not success:
+                error_msg = str(last_error).lower() if last_error else ""
                 if 'format' in error_msg or 'no formats' in error_msg or 'requested format' in error_msg:
-                    logger.warning(f"Format error with primary options, retrying with fallback formats: {format_error}")
+                    logger.warning(f"Format error, trying fallback formats...")
                     
-                    # Remove postprocessor for fallbacks - we'll convert manually
                     ydl_opts_fallback = ydl_opts.copy()
                     ydl_opts_fallback['postprocessors'] = []
                     
-                    # Try increasingly simple format options
-                    fallback_formats = [
-                        'bestaudio',  # Just best audio
-                        'best',  # Best overall
-                        'worstaudio',  # If all else fails
-                        'worst',
-                    ]
+                    fallback_formats = ['bestaudio', 'best', 'worstaudio', 'worst']
                     
                     for fmt in fallback_formats:
                         try:
@@ -325,13 +327,13 @@ class JobManager:
                                 break
                         except Exception as fb_error:
                             logger.warning(f"Format fallback ({fmt}) failed: {fb_error}")
+                            last_error = fb_error
                             continue
                     
-                    if not success:
-                        logger.error(f"All format fallbacks exhausted. Last error: {format_error}")
-                        raise format_error
-                else:
-                    raise format_error
+                    if not success and last_error:
+                        raise last_error
+                elif last_error:
+                    raise last_error
             
             job.progress = 85
             job.stage = "Finalizing..."
