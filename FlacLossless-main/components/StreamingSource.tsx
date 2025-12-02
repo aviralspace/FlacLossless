@@ -218,28 +218,28 @@ const StreamingSource: React.FC<StreamingSourceProps> = ({ onTracksImport, onClo
 
         {activeTab === 'youtube' && (
           <div className="flex-1 flex flex-col min-h-0">
-            <div className="flex-shrink-0 mb-4 flex gap-2">
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSearch();
+              }}
+              className="flex-shrink-0 mb-4 flex gap-2"
+            >
               <input
                 type="text"
                 placeholder="Search for any song..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleSearch();
-                  }
-                }}
                 className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-500/50"
               />
               <button
-                onClick={handleSearch}
+                type="submit"
                 disabled={loading}
                 className="px-4 py-3 bg-red-500 hover:bg-red-600 disabled:bg-gray-600 text-white rounded-lg font-bold transition-colors"
               >
                 {loading ? <Loader size={18} className="animate-spin" /> : <Search size={18} />}
               </button>
-            </div>
+            </form>
 
             {error && (
               <div className="flex-shrink-0 bg-red-500/10 border border-red-500/30 rounded-lg p-3 mb-4">
@@ -317,23 +317,28 @@ const StreamingSource: React.FC<StreamingSourceProps> = ({ onTracksImport, onClo
 
         {activeTab === 'spotify' && (
           <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="flex-none mb-4 flex gap-2">
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSearch();
+              }}
+              className="flex-none mb-4 flex gap-2"
+            >
               <input
                 type="text"
                 placeholder="Search playlists..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-green-500/50"
               />
               <button
-                onClick={handleSearch}
+                type="submit"
                 disabled={loading}
                 className="px-4 py-3 bg-green-500 hover:bg-green-600 disabled:bg-gray-600 text-white rounded-lg font-bold transition-colors"
               >
                 {loading ? <Loader size={18} className="animate-spin" /> : <Search size={18} />}
               </button>
-            </div>
+            </form>
 
             {selectedPlaylist ? (
               <div className="flex-1 flex flex-col overflow-hidden">
