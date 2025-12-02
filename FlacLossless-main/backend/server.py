@@ -893,7 +893,7 @@ cleanup_thread.start()
 # Note: When using Gunicorn, don't call app.run()
 # Gunicorn will handle starting the server
 if __name__ == '__main__':
-    port = int(os.getenv('PORT', 5000))
+    port = int(os.getenv('PORT', 3001))
     
     logger.info(f"FlacLossless Backend starting on 0.0.0.0:{port}")
     logger.info(f"Audio dir: {AUDIO_DIR}")

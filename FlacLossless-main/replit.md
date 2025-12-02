@@ -1,7 +1,14 @@
-# SonicPulse ULTRA
+# SonicPulse ULTRA (FlacLossless)
 
 ## Overview
 SonicPulse ULTRA is an AI-powered music player with studio-grade audio processing, real-time visualizations, and intelligent EQ generation. Built with React, TypeScript, and Vite.
+
+## Recent Changes (December 2025)
+- Fixed YouTube download issues by removing cookies from default yt-dlp options
+- Changed format selection from 'best' to 'bestaudio/best' for better audio extraction
+- Added ffmpeg_location to yt-dlp options for proper audio conversion
+- Fixed HLS download handling (mp4 to mp3 conversion)
+- Backend now runs on port 3001, frontend on port 5000 (Vite proxy configured)
 
 ## Project Structure
 ```
@@ -37,9 +44,12 @@ SonicPulse ULTRA is an AI-powered music player with studio-grade audio processin
 ```
 
 ## Running the App
-- Development: `npm run dev` (runs on port 5000)
+- Frontend: `npm run dev` (runs on port 5000)
+- Backend: `cd backend && python server.py` (runs on port 3001)
 - Build: `npm run build`
 - Preview: `npm run preview`
+
+Note: The Vite dev server proxies API requests from port 5000 to the backend on port 3001.
 
 ## Environment Variables
 - `GEMINI_API_KEY` - Required for AI-powered EQ generation
