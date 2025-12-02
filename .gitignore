@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+.pythonlibs/
+
+# Build outputs
+dist/
+build/
+
+# Cache files
+*.pyc
+__pycache__/
+.cache/
+cache.json
+
+# Audio files (generated)
+backend/audio/*.mp3
+audio/
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+/tmp/
+
+# Replit
+.replit
+.local/
+
+# Package manager locks (optional - uncomment if needed)
+# package-lock.json
