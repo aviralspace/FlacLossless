@@ -129,7 +129,7 @@ class JobManager:
                 if job and job.status == "queued":
                     self._process_job(job)
             except Exception as e:
-                logger.error(f"Worker error: {e}")
+                logger.error(f"Worker error: {e}", exc_info=True)
             finally:
                 self.job_queue.task_done()
     
@@ -174,7 +174,7 @@ class JobManager:
                 'no_warnings': True,
                 'nocheckcertificate': True,
                 'geo_bypass': True,
-                'no_playlist': True,
+                'noplaylist': True,
                 'progress_hooks': [progress_hook],
                 'postprocessors': [{
                     'key': 'FFmpegExtractAudio',
@@ -205,6 +205,11 @@ class JobManager:
                 'verbose': False,
             }
             
+            # If the client attached a cookiefile to the job, use it
+            cookiefile = getattr(job, 'cookiefile', None)
+            if cookiefile:
+                ydl_opts['cookiefile'] = cookiefile
+
             job.stage = "Fetching video info..."
             job.progress = 10
             job.notify_subscribers()
@@ -256,14 +261,28 @@ class JobManager:
             job.status = "completed"
             job.notify_subscribers()
             
+            # cleanup temporary cookiefile if one was attached
+            try:
+                cookiefile = getattr(job, 'cookiefile', None)
+                if cookiefile and os.path.exists(cookiefile):
+                    os.remove(cookiefile)
+            except Exception:
+                pass
+
             logger.info(f"Job {job.job_id} completed: {job.title}")
             
         except Exception as e:
-            logger.error(f"Job {job.job_id} failed: {e}")
+            logger.error(f"Job {job.job_id} failed: {e}", exc_info=True)
             job.status = "failed"
             job.error = str(e)
             job.stage = "Failed"
             job.notify_subscribers()
+            try:
+                cookiefile = getattr(job, 'cookiefile', None)
+                if cookiefile and os.path.exists(cookiefile):
+                    os.remove(cookiefile)
+            except Exception:
+                pass
 
 job_manager = JobManager()
 
@@ -361,6 +380,15 @@ def create_download_job():
     data = request.get_json() or {}
     url = data.get('url', '')
     title = data.get('title', '')
+    # Support optional cookies: either a server-side path (`cookies_path`) or raw cookie file content (`cookies`)
+    cookies_path = data.get('cookies_path') or None
+    cookies_content = data.get('cookies') or None
+    if cookies_content and not cookies_path:
+        tf = tempfile.NamedTemporaryFile(delete=False, prefix='ytcookies_', suffix='.txt')
+        tf.write(cookies_content.encode('utf-8'))
+        tf.flush()
+        tf.close()
+        cookies_path = tf.name
     
     if not url:
         return jsonify({'error': 'No URL provided'}), 400
@@ -370,6 +398,8 @@ def create_download_job():
         return jsonify({'error': 'Invalid YouTube URL'}), 400
     
     job = job_manager.create_job(video_id, url, title)
+    if cookies_path:
+        setattr(job, 'cookiefile', cookies_path)
     
     return jsonify(job.to_dict())
 
