@@ -67,7 +67,10 @@ def get_youtube_cookies():
         default_paths = [
             './youtube_cookies.txt',
             '../youtube_cookies.txt',
+            os.path.join(AUDIO_DIR, 'youtube_cookies.txt'),
             os.path.expanduser('~/youtube_cookies.txt'),
+            './www.youtube.com_cookies (1).txt',
+            '../www.youtube.com_cookies (1).txt',
         ]
         
         for path in default_paths:
@@ -206,9 +209,7 @@ class JobManager:
                     job.stage = "Converting to MP3..."
                     job.notify_subscribers()
             
-            cookies_file = get_youtube_cookies()
-            if cookies_file:
-                logger.info(f"Using cookies file for download: {cookies_file}")
+            ffmpeg_location = shutil.which('ffmpeg') or '/home/runner/.nix-profile/bin/ffmpeg'
             
             ydl_opts = {
                 'format': 'bestaudio/best',
@@ -223,32 +224,12 @@ class JobManager:
                 'retries': 5,
                 'fragment_retries': 5,
                 'skip_unavailable_fragments': True,
-                'allow_unplayable_formats': True,
-                'verbose': False,
-                'youtube_include_dash_manifest': False,
+                'ffmpeg_location': os.path.dirname(ffmpeg_location),
                 'http_headers': {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                     'Accept-Language': 'en-US,en;q=0.9',
-                    'Accept-Encoding': 'gzip, deflate',
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                    'DNT': '1',
-                    'Connection': 'keep-alive',
-                    'Upgrade-Insecure-Requests': '1',
-                    'Sec-Fetch-Dest': 'document',
-                    'Sec-Fetch-Mode': 'navigate',
-                    'Sec-Fetch-Site': 'none',
-                },
-                'extractor_args': {
-                    'youtube': {
-                        'player_client': ['android', 'web', 'mweb', 'tv', 'ios'],
-                        'player_skip_download': False,
-                        'skip': ['hls', 'dash'],
-                    }
                 },
             }
-            
-            if cookies_file:
-                ydl_opts['cookiefile'] = cookies_file
             
             job.stage = "Fetching video info..."
             job.progress = 10
@@ -301,7 +282,34 @@ class JobManager:
             
             if not success:
                 error_msg = str(last_error).lower() if last_error else ""
-                if 'format' in error_msg or 'no formats' in error_msg or 'requested format' in error_msg:
+                
+                if 'sign in' in error_msg or 'bot' in error_msg or 'authentication' in error_msg:
+                    cookies_file = get_youtube_cookies()
+                    if cookies_file:
+                        logger.info(f"Auth required, trying with cookies: {cookies_file}")
+                        ydl_opts['cookiefile'] = cookies_file
+                        ydl_opts['postprocessors'] = [{
+                            'key': 'FFmpegExtractAudio',
+                            'preferredcodec': 'mp3',
+                            'preferredquality': '192',
+                        }]
+                        try:
+                            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                                info = ydl.extract_info(job.url, download=True)
+                                job.metadata = {
+                                    'title': info.get('title', job.title or 'Unknown'),
+                                    'duration': info.get('duration', 0),
+                                    'thumbnail': info.get('thumbnail', ''),
+                                    'uploader': info.get('uploader', info.get('channel', 'Unknown')),
+                                }
+                                job.title = job.metadata['title']
+                                success = True
+                                logger.info(f"Download successful with cookies")
+                        except Exception as e_cookies:
+                            logger.warning(f"Cookies download failed: {e_cookies}")
+                            last_error = e_cookies
+                
+                if not success and ('format' in error_msg or 'no formats' in error_msg or 'requested format' in error_msg):
                     logger.warning(f"Format error, trying fallback formats...")
                     
                     ydl_opts_fallback = ydl_opts.copy()
@@ -332,7 +340,7 @@ class JobManager:
                     
                     if not success and last_error:
                         raise last_error
-                elif last_error:
+                elif not success and last_error:
                     raise last_error
             
             job.progress = 85
@@ -348,7 +356,7 @@ class JobManager:
                 logger.warning(f"Expected output file not found: {output_path}")
                 logger.info(f"Searching for alternative audio files with file_id: {file_id}")
                 
-                for ext in ['mp3', 'm4a', 'webm', 'opus', 'ogg', 'wav', 'aac', 'flac']:
+                for ext in ['mp3', 'm4a', 'mp4', 'webm', 'opus', 'ogg', 'wav', 'aac', 'flac']:
                     alt_path = os.path.join(AUDIO_DIR, f"{file_id}.{ext}")
                     logger.info(f"Checking for: {alt_path} - exists: {os.path.exists(alt_path)}")
                     
@@ -462,29 +470,36 @@ def health():
 def debug_test_video():
     """Debug endpoint to test if a specific video works and what error it returns"""
     video_id = request.args.get('video_id', 'dQw4w9WgXcQ')  # Default: Rick Roll
+    use_cookies = request.args.get('cookies', 'false').lower() == 'true'
     
+    cookies_file = None
     try:
         url = f"https://www.youtube.com/watch?v={video_id}"
         
         ydl_opts = {
             'quiet': True,
             'no_warnings': True,
-            'skip_download': True,  # Don't actually download, just check
-            'format': 'bestaudio',
+            'skip_download': True,
+            'nocheckcertificate': True,
+            'geo_bypass': True,
         }
         
-        cookies_file = get_youtube_cookies()
-        if cookies_file:
-            ydl_opts['cookiefile'] = cookies_file
-            logger.info(f"Using cookies: {cookies_file}")
+        if use_cookies:
+            cookies_file = get_youtube_cookies()
+            if cookies_file:
+                ydl_opts['cookiefile'] = cookies_file
+                logger.info(f"Using cookies: {cookies_file}")
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
+            formats = info.get('formats', [])
+            audio_formats = [f for f in formats if f.get('acodec') != 'none']
             return jsonify({
                 'success': True,
                 'video_id': video_id,
                 'title': info.get('title'),
-                'formats_available': len(info.get('formats', [])),
+                'formats_available': len(formats),
+                'audio_formats': len(audio_formats),
                 'cookies_used': cookies_file is not None,
             })
     
@@ -494,7 +509,7 @@ def debug_test_video():
             'success': False,
             'error': error_msg,
             'error_type': type(e).__name__,
-            'cookies_used': cookies_file is not None if cookies_file else False,
+            'cookies_used': cookies_file is not None,
             'is_auth_error': 'sign in' in error_msg.lower() or 'bot' in error_msg.lower(),
             'is_format_error': 'format' in error_msg.lower(),
         }), 400
