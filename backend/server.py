@@ -48,56 +48,6 @@ def save_cache(cache_data):
 
 cache = load_cache()
 
-def get_youtube_cookies():
-    """
-    Get cookie file path for yt-dlp authentication.
-    Called on each request to pick up newly added cookie files.
-    Returns cookie file path or None if unavailable.
-    """
-    try:
-        cookie_file = os.getenv('YT_COOKIES_FILE')
-        if cookie_file and os.path.exists(cookie_file):
-            with open(cookie_file, 'r') as f:
-                content = f.read().lower()
-                if 'youtube' in content and 'your_login_here' not in content:
-                    logger.info(f"Using cookies from file: {cookie_file}")
-                    return cookie_file
-        
-        # Get the directory where this server.py file is located
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        parent_dir = os.path.dirname(script_dir)
-        
-        default_paths = [
-            './youtube_cookies.txt',
-            '../youtube_cookies.txt',
-            os.path.join(script_dir, 'youtube_cookies.txt'),
-            os.path.join(parent_dir, 'youtube_cookies.txt'),
-            os.path.expanduser('~/youtube_cookies.txt'),
-            '/opt/render/project/src/youtube_cookies.txt',  # Render deployment path
-        ]
-        
-        logger.info(f"Script directory: {script_dir}, Parent: {parent_dir}")
-        logger.info(f"Looking for cookies in paths: {default_paths}")
-        
-        for path in default_paths:
-            if os.path.exists(path):
-                try:
-                    with open(path, 'r') as f:
-                        content = f.read().lower()
-                        if 'youtube' in content and 'your_login_here' not in content:
-                            logger.info(f"Found valid cookies file at: {path}")
-                            return path
-                except Exception as e:
-                    logger.warning(f"Error reading {path}: {e}")
-                    continue
-        
-        logger.warning("No valid YouTube cookies file found in any of the default paths")
-        return None
-            
-    except Exception as e:
-        logger.warning(f"Cookie extraction failed: {e}")
-        return None
-
 class DownloadJob:
     def __init__(self, job_id: str, video_id: str, url: str, title: str = ""):
         self.job_id = job_id
@@ -244,6 +194,7 @@ class JobManager:
                     'youtube': {
                         'player_client': ['android', 'web', 'mweb', 'tv', 'ios'],
                         'player_skip_download': False,
+                        'skip': ['hls', 'dash'],
                     }
                 },
                 'socket_timeout': 30,
@@ -253,13 +204,6 @@ class JobManager:
                 'quiet': False,
                 'verbose': False,
             }
-            
-            cookies_file = get_youtube_cookies()
-            if cookies_file:
-                ydl_opts['cookiefile'] = cookies_file
-                logger.info(f"✓ Using cookies for download: {cookies_file}")
-            else:
-                logger.warning("⚠ No cookies file found! YouTube may block requests.")
             
             job.stage = "Fetching video info..."
             job.progress = 10
@@ -382,13 +326,6 @@ def search_youtube():
             },
             'retries': 3,
         }
-        
-        cookies_file = get_youtube_cookies()
-        if cookies_file:
-            ydl_opts['cookiefile'] = cookies_file
-            logger.info(f"✓ Using cookies for search: {cookies_file}")
-        else:
-            logger.warning("⚠ No cookies file found for search! This may affect results.")
         
         logger.info(f"yt-dlp version: {yt_dlp.version.__version__}")
         
