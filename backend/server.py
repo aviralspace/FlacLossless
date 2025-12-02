@@ -63,11 +63,21 @@ def get_youtube_cookies():
                     logger.info(f"Using cookies from file: {cookie_file}")
                     return cookie_file
         
+        # Get the directory where this server.py file is located
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        parent_dir = os.path.dirname(script_dir)
+        
         default_paths = [
             './youtube_cookies.txt',
             '../youtube_cookies.txt',
+            os.path.join(script_dir, 'youtube_cookies.txt'),
+            os.path.join(parent_dir, 'youtube_cookies.txt'),
             os.path.expanduser('~/youtube_cookies.txt'),
+            '/opt/render/project/src/youtube_cookies.txt',  # Render deployment path
         ]
+        
+        logger.info(f"Script directory: {script_dir}, Parent: {parent_dir}")
+        logger.info(f"Looking for cookies in paths: {default_paths}")
         
         for path in default_paths:
             if os.path.exists(path):
@@ -77,9 +87,11 @@ def get_youtube_cookies():
                         if 'youtube' in content and 'your_login_here' not in content:
                             logger.info(f"Found valid cookies file at: {path}")
                             return path
-                except Exception:
+                except Exception as e:
+                    logger.warning(f"Error reading {path}: {e}")
                     continue
         
+        logger.warning("No valid YouTube cookies file found in any of the default paths")
         return None
             
     except Exception as e:
@@ -245,7 +257,9 @@ class JobManager:
             cookies_file = get_youtube_cookies()
             if cookies_file:
                 ydl_opts['cookiefile'] = cookies_file
-                logger.info(f"Using cookies for download: {cookies_file}")
+                logger.info(f"✓ Using cookies for download: {cookies_file}")
+            else:
+                logger.warning("⚠ No cookies file found! YouTube may block requests.")
             
             job.stage = "Fetching video info..."
             job.progress = 10
@@ -372,6 +386,9 @@ def search_youtube():
         cookies_file = get_youtube_cookies()
         if cookies_file:
             ydl_opts['cookiefile'] = cookies_file
+            logger.info(f"✓ Using cookies for search: {cookies_file}")
+        else:
+            logger.warning("⚠ No cookies file found for search! This may affect results.")
         
         logger.info(f"yt-dlp version: {yt_dlp.version.__version__}")
         
