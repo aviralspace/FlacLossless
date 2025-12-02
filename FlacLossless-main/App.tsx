@@ -681,17 +681,17 @@ const App: React.FC = () => {
       {/* Streaming Source Modal */}
       {showStreamingSource && (
         <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
-            <div className="w-full max-w-2xl bg-[#0a0a0a] border border-orange-500/30 rounded-3xl p-8 shadow-[0_0_100px_rgba(249,115,22,0.15)] relative overflow-hidden max-h-[80vh] flex flex-col">
+            <div className="w-full max-w-2xl bg-[#0a0a0a] border border-orange-500/30 rounded-3xl p-8 shadow-[0_0_100px_rgba(249,115,22,0.15)] relative max-h-[85vh] flex flex-col">
                 <div className="absolute -top-20 -right-20 w-64 h-64 bg-orange-600/20 rounded-full blur-3xl pointer-events-none"></div>
 
-                <div className="flex justify-between items-center mb-6 relative z-10">
+                <div className="flex justify-between items-center mb-6 relative z-10 flex-shrink-0">
                     <h3 className="text-2xl font-bold text-white flex items-center gap-3">
                         <Wifi className="text-orange-500" /> Stream Playlists
                     </h3>
                     <button onClick={() => setShowStreamingSource(false)} className="text-gray-500 hover:text-white p-2 hover:bg-white/10 rounded-full transition-colors"><X size={20}/></button>
                 </div>
 
-                <div className="flex-1 overflow-hidden min-h-0 relative z-10">
+                <div className="flex-1 min-h-0 relative z-10">
                     <StreamingSource 
                         onTracksImport={(tracks) => {
                             setPlaylist(prev => [...prev, ...tracks]);

@@ -50,26 +50,37 @@ cache = load_cache()
 
 def get_youtube_cookies():
     """
-    Use yt-dlp's native cookie extraction from browser.
+    Get cookie file path for yt-dlp authentication.
+    Called on each request to pick up newly added cookie files.
     Returns cookie file path or None if unavailable.
     """
     try:
-        # Try to get from environment variable first
         cookie_file = os.getenv('YT_COOKIES_FILE')
         if cookie_file and os.path.exists(cookie_file):
-            logger.info(f"Using cookies from file: {cookie_file}")
-            return cookie_file
+            with open(cookie_file, 'r') as f:
+                content = f.read().lower()
+                if 'youtube' in content and 'your_login_here' not in content:
+                    logger.info(f"Using cookies from file: {cookie_file}")
+                    return cookie_file
         
-        # Try to extract using yt-dlp's native --cookies-from-browser
-        try:
-            from yt_dlp.utils import extract_basic_auth
-            logger.info("yt-dlp cookie extraction available")
-            
-            # We'll use this in ydl_opts via 'cookies_from_browser'
-            return True  # Signal to use cookies-from-browser
-        except Exception as e:
-            logger.debug(f"yt-dlp cookie extraction not available: {e}")
-            return None
+        default_paths = [
+            './youtube_cookies.txt',
+            '../youtube_cookies.txt',
+            os.path.expanduser('~/youtube_cookies.txt'),
+        ]
+        
+        for path in default_paths:
+            if os.path.exists(path):
+                try:
+                    with open(path, 'r') as f:
+                        content = f.read().lower()
+                        if 'youtube' in content and 'your_login_here' not in content:
+                            logger.info(f"Found valid cookies file at: {path}")
+                            return path
+                except Exception:
+                    continue
+        
+        return None
             
     except Exception as e:
         logger.warning(f"Cookie extraction failed: {e}")
@@ -224,12 +235,17 @@ class JobManager:
                     }
                 },
                 'socket_timeout': 30,
-                'retries': {'max_retries': 5, 'backoff_factor': 1.0},
+                'retries': 5,
                 'fragment_retries': 5,
                 'skip_unavailable_fragments': True,
                 'quiet': False,
                 'verbose': False,
             }
+            
+            cookies_file = get_youtube_cookies()
+            if cookies_file:
+                ydl_opts['cookiefile'] = cookies_file
+                logger.info(f"Using cookies for download: {cookies_file}")
             
             job.stage = "Fetching video info..."
             job.progress = 10
@@ -350,8 +366,12 @@ def search_youtube():
                     'skip': ['hls', 'dash'],
                 }
             },
-            'retries': {'max_retries': 3, 'backoff_factor': 0.5},
+            'retries': 3,
         }
+        
+        cookies_file = get_youtube_cookies()
+        if cookies_file:
+            ydl_opts['cookiefile'] = cookies_file
         
         logger.info(f"yt-dlp version: {yt_dlp.version.__version__}")
         

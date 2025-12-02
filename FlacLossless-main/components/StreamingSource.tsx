@@ -185,7 +185,7 @@ const StreamingSource: React.FC<StreamingSourceProps> = ({ onTracksImport, onClo
 
   return (
     <>
-      <div className="w-full h-full flex flex-col">
+      <div className="w-full h-full flex flex-col min-h-0 overflow-hidden">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-white font-bold text-lg">Stream Music</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-white">
@@ -217,8 +217,8 @@ const StreamingSource: React.FC<StreamingSourceProps> = ({ onTracksImport, onClo
         </div>
 
         {activeTab === 'youtube' && (
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="flex-none mb-4 flex gap-2">
+          <div className="flex-1 flex flex-col min-h-0">
+            <div className="flex-shrink-0 mb-4 flex gap-2">
               <input
                 type="text"
                 placeholder="Search for any song..."
@@ -237,7 +237,7 @@ const StreamingSource: React.FC<StreamingSourceProps> = ({ onTracksImport, onClo
             </div>
 
             {error && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mb-4">
+              <div className="flex-shrink-0 bg-red-500/10 border border-red-500/30 rounded-lg p-3 mb-4">
                 <p className="text-red-400 text-sm">{error}</p>
               </div>
             )}
