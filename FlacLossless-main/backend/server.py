@@ -58,11 +58,41 @@ def get_youtube_cookies():
     try:
         cookie_file = os.getenv('YT_COOKIES_FILE')
         if cookie_file and os.path.exists(cookie_file):
-            with open(cookie_file, 'r') as f:
-                content = f.read().lower()
-                if 'youtube' in content and 'your_login_here' not in content:
-                    logger.info(f"Using cookies from file: {cookie_file}")
-                    return cookie_file
+            try:
+                with open(cookie_file, 'r', encoding='utf-8', errors='ignore') as f:
+                    content = f.read()
+            except Exception:
+                content = ''
+
+            # Accept plain text (contains youtube) or JSON cookie exports
+            lower = content.lower()
+            if 'youtube' in lower and 'your_login_here' not in lower:
+                logger.info(f"Using cookies from file: {cookie_file}")
+                return cookie_file
+            # Try parsing JSON cookie exports
+            try:
+                parsed = json.loads(content)
+                # parsed could be a dict with list of cookies
+                items = []
+                if isinstance(parsed, dict):
+                    # common formats: { cookies: [...] } or top-level list under some key
+                    if 'cookies' in parsed and isinstance(parsed['cookies'], list):
+                        items = parsed['cookies']
+                    else:
+                        # if dict looks like a single cookie, treat as single
+                        items = [parsed]
+                elif isinstance(parsed, list):
+                    items = parsed
+
+                for it in items:
+                    domain = ''
+                    if isinstance(it, dict):
+                        domain = str(it.get('domain', '') or it.get('host', '')).lower()
+                    if 'youtube' in domain:
+                        logger.info(f"Using JSON-format cookies from file: {cookie_file}")
+                        return cookie_file
+            except Exception:
+                pass
         
         default_paths = [
             './youtube_cookies.txt',
@@ -76,11 +106,25 @@ def get_youtube_cookies():
         for path in default_paths:
             if os.path.exists(path):
                 try:
-                    with open(path, 'r') as f:
-                        content = f.read().lower()
-                        if 'youtube' in content and 'your_login_here' not in content:
+                    with open(path, 'r', encoding='utf-8', errors='ignore') as f:
+                        content = f.read()
+                        lower = content.lower()
+                        if 'youtube' in lower and 'your_login_here' not in lower:
                             logger.info(f"Found valid cookies file at: {path}")
                             return path
+                        # Try JSON parse for cookie-exporters that save JSON
+                        try:
+                            parsed = json.loads(content)
+                            items = parsed if isinstance(parsed, list) else parsed.get('cookies', []) if isinstance(parsed, dict) else []
+                            for it in items:
+                                domain = ''
+                                if isinstance(it, dict):
+                                    domain = str(it.get('domain', '') or it.get('host', '')).lower()
+                                if 'youtube' in domain:
+                                    logger.info(f"Found JSON-format cookies file at: {path}")
+                                    return path
+                        except Exception:
+                            pass
                 except Exception:
                     continue
         
