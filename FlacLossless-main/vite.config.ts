@@ -13,11 +13,11 @@ export default defineConfig(({ mode }) => {
         allowedHosts: true,
         watch: {
           ignored: [
-            '**/backend/cache.json', 
-            '**/backend/audio/**',
+            '**/backend/**',
             '**/youtube_cookies.txt',
             '**/www.youtube.com_cookies*.txt',
-            '**/*.cookies.txt'
+            '**/*.cookies.txt',
+            '**/*.md'
           ]
         },
 

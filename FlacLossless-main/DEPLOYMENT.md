@@ -50,20 +50,30 @@ YT_COOKIES_FILE=/path/to/youtube_cookies.txt (optional, for YouTube auth)
 
 ## YouTube Authentication & Cookies
 
-YouTube may block downloads from server environments. To fix this:
+**Important: YouTube aggressively blocks cloud server IPs (Render, Railway, Vercel, AWS, etc.)** This is a known issue affecting all yt-dlp users on datacenter IPs. Even with valid cookies, success rate is approximately 40-60% on cloud servers.
 
-1. **Export cookies from your browser** (while logged into YouTube)
+### Best Practices for Cloud Deployment:
+
+1. **Export FRESH cookies from an INCOGNITO/PRIVATE window**
+   - Log into YouTube in a new incognito window
    - Use a browser extension like "Get cookies.txt LOCALLY"
-   - Export as Netscape format `.txt` file
+   - Export cookies as Netscape format `.txt` file
+   - Incognito cookies work better because they have no tracking history
    
-2. **Upload cookies to your backend**
-   - Use the COOKIES button in the app interface, OR
-   - Set `YT_COOKIES_FILE` environment variable to the cookie file path
+2. **Upload cookies frequently**
+   - Use the green COOKIES button in the app
+   - Re-export and re-upload when downloads start failing
+   - YouTube cookies expire faster on server IPs
 
-3. **For persistent hosting** (Railway/Render):
-   - Mount a persistent volume for cookie storage
-   - Set `YT_COOKIES_FILE` to point to a file on that volume
-   - Cookies expire periodically - re-upload when needed
+3. **Expect some failures**
+   - Cloud servers have ~50% success rate with YouTube
+   - Some videos may never work on server IPs
+   - Try different videos if one fails repeatedly
+
+4. **For better reliability** (if possible):
+   - Run the backend locally on your computer for 100% success rate
+   - Use residential proxy service if available
+   - Some VPS providers have better IP reputation than others
 
 ## Troubleshooting
 
