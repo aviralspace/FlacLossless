@@ -570,25 +570,25 @@ def upload_cookies():
     """Upload YouTube cookies file for authentication."""
     try:
         if 'file' not in request.files:
-            return jsonify({'error': 'No file provided'}), 400
+            return jsonify({'success': False, 'error': 'No file provided'}), 400
         
         file = request.files['file']
         if file.filename == '':
-            return jsonify({'error': 'No file selected'}), 400
+            return jsonify({'success': False, 'error': 'No file selected'}), 400
         
         if not file.filename.endswith('.txt'):
-            return jsonify({'error': 'Only .txt files are allowed'}), 400
+            return jsonify({'success': False, 'error': 'Only .txt files are allowed'}), 400
         
-        # Save cookies file
-        cookies_path = os.path.join(AUDIO_DIR, 'youtube_cookies.txt')
+        # Save cookies file to parent directory (where it's being detected)
+        cookies_path = os.path.join(os.path.dirname(AUDIO_DIR), 'youtube_cookies.txt')
         file.save(cookies_path)
         
         # Validate the file
-        with open(cookies_path, 'r') as f:
+        with open(cookies_path, 'r', encoding='utf-8', errors='ignore') as f:
             content = f.read()
             if 'youtube.com' not in content.lower():
                 os.remove(cookies_path)
-                return jsonify({'error': 'Invalid YouTube cookies file'}), 400
+                return jsonify({'success': False, 'error': 'Invalid YouTube cookies file - must contain youtube.com cookies'}), 400
         
         logger.info(f"Cookies file uploaded successfully: {cookies_path}")
         
@@ -596,11 +596,11 @@ def upload_cookies():
             'success': True,
             'message': 'Cookies file uploaded successfully',
             'path': cookies_path
-        })
+        }), 200
     
     except Exception as e:
-        logger.error(f"Cookies upload error: {e}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Cookies upload error: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': f'Upload failed: {str(e)}'}), 500
 
 
 @app.route('/cookies', methods=['GET'])
