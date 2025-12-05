@@ -33,9 +33,49 @@ Your **frontend** is deployed on Vercel, but your **backend** (Flask server) is 
 
 ## Environment Variables Needed
 
-For Vercel Environment Variables, add:
+### Vercel (Frontend)
+Add these in Vercel Dashboard → Settings → Environment Variables:
 ```
 VITE_BACKEND_URL=https://your-backend-url.com
 GEMINI_API_KEY=your_gemini_key (if using AI features)
 VITE_SPOTIFY_CLIENT_ID=your_spotify_id (if using Spotify)
 ```
+
+### Backend (Railway/Render)
+Add these in your backend provider's environment variables:
+```
+PORT=5000
+YT_COOKIES_FILE=/path/to/youtube_cookies.txt (optional, for YouTube auth)
+```
+
+## YouTube Authentication & Cookies
+
+YouTube may block downloads from server environments. To fix this:
+
+1. **Export cookies from your browser** (while logged into YouTube)
+   - Use a browser extension like "Get cookies.txt LOCALLY"
+   - Export as Netscape format `.txt` file
+   
+2. **Upload cookies to your backend**
+   - Use the COOKIES button in the app interface, OR
+   - Set `YT_COOKIES_FILE` environment variable to the cookie file path
+
+3. **For persistent hosting** (Railway/Render):
+   - Mount a persistent volume for cookie storage
+   - Set `YT_COOKIES_FILE` to point to a file on that volume
+   - Cookies expire periodically - re-upload when needed
+
+## Troubleshooting
+
+### "Authentication Failed" Error
+- Your YouTube cookies may be expired
+- Export fresh cookies from a logged-in YouTube session
+- Upload via the COOKIES button in the app
+
+### "Format Not Available" Error
+- Some videos have restricted formats
+- Try a different video or upload fresh cookies
+
+### Backend Not Reachable
+- Verify `VITE_BACKEND_URL` is set correctly (no trailing slash)
+- Redeploy Vercel after setting the environment variable
