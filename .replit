@@ -1,7 +1,7 @@
-modules = ["python-3.11", "nodejs-20"]
+modules = ["nodejs-20", "python-3.12", "bash", "web"]
 [nix]
 channel = "stable-25_05"
-packages = ["unzip", "ffmpeg-full"]
+packages = ["ffmpeg-full", "unzip"]
 
 [agent]
 expertMode = true
@@ -47,9 +47,17 @@ waitForPort = 5000
 outputType = "webview"
 
 [[ports]]
+localPort = 3001
+externalPort = 3001
+
+[[ports]]
 localPort = 5000
 externalPort = 80
 
 [[ports]]
 localPort = 33009
 externalPort = 3000
+
+[[ports]]
+localPort = 42523
+externalPort = 3002
