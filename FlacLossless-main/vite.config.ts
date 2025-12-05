@@ -12,7 +12,13 @@ export default defineConfig(({ mode }) => {
         strictPort: false, // Fall back to next available port if 5000 is busy
         allowedHosts: true,
         watch: {
-          ignored: ['**/backend/cache.json', '**/backend/audio/**']
+          ignored: [
+            '**/backend/cache.json', 
+            '**/backend/audio/**',
+            '**/youtube_cookies.txt',
+            '**/www.youtube.com_cookies*.txt',
+            '**/*.cookies.txt'
+          ]
         },
 
         // Proxy backend requests to port 5001 using middlew proxy with proper headers
