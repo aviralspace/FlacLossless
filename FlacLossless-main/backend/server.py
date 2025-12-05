@@ -292,33 +292,51 @@ class JobManager:
                 error_msg = str(last_error).lower() if last_error else ""
                 
                 if 'sign in' in error_msg or 'bot' in error_msg or 'authentication' in error_msg:
-                    logger.info("Auth error detected, trying android_embedded client...")
-                    ydl_opts['extractor_args'] = {
-                        'youtube': {
-                            'player_client': ['android_embedded', 'android', 'web'],
-                            'player_skip': ['configs', 'webpage'],
+                    # Try multiple player clients to maximize success rate
+                    client_attempts = [
+                        {
+                            'name': 'android_embedded',
+                            'clients': ['android_embedded', 'android', 'web'],
+                            'ua': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36'
+                        },
+                        {
+                            'name': 'mweb',
+                            'clients': ['mweb', 'android', 'web'],
+                            'ua': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
                         }
-                    }
-                    ydl_opts['postprocessors'] = [{
-                        'key': 'FFmpegExtractAudio',
-                        'preferredcodec': 'mp3',
-                        'preferredquality': '192',
-                    }]
-                    try:
-                        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                            info = ydl.extract_info(job.url, download=True)
-                            job.metadata = {
-                                'title': info.get('title', job.title or 'Unknown'),
-                                'duration': info.get('duration', 0),
-                                'thumbnail': info.get('thumbnail', ''),
-                                'uploader': info.get('uploader', info.get('channel', 'Unknown')),
+                    ]
+                    
+                    for attempt in client_attempts:
+                        if success:
+                            break
+                        logger.info(f"Auth error detected, trying {attempt['name']} client...")
+                        ydl_opts['extractor_args'] = {
+                            'youtube': {
+                                'player_client': attempt['clients'],
+                                'player_skip': ['configs', 'webpage'],
                             }
-                            job.title = job.metadata['title']
-                            success = True
-                            logger.info(f"Download successful with android_embedded client")
-                    except Exception as e_android:
-                        logger.warning(f"Android embedded client failed: {e_android}")
-                        last_error = e_android
+                        }
+                        ydl_opts['http_headers']['User-Agent'] = attempt['ua']
+                        ydl_opts['postprocessors'] = [{
+                            'key': 'FFmpegExtractAudio',
+                            'preferredcodec': 'mp3',
+                            'preferredquality': '192',
+                        }]
+                        try:
+                            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                                info = ydl.extract_info(job.url, download=True)
+                                job.metadata = {
+                                    'title': info.get('title', job.title or 'Unknown'),
+                                    'duration': info.get('duration', 0),
+                                    'thumbnail': info.get('thumbnail', ''),
+                                    'uploader': info.get('uploader', info.get('channel', 'Unknown')),
+                                }
+                                job.title = job.metadata['title']
+                                success = True
+                                logger.info(f"Download successful with {attempt['name']} client")
+                        except Exception as e_client:
+                            logger.warning(f"{attempt['name']} client failed: {e_client}")
+                            last_error = e_client
                     
                     if not success:
                         cookies_file = get_youtube_cookies()
